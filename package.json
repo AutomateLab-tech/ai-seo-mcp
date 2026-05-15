@@ -1,0 +1,60 @@
+{
+  "name": "@automatelab/ai-seo-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for AI-SEO auditing: schema, robots.txt, llms.txt, citation scoring, and AEO/GEO rewrites",
+  "license": "MIT",
+  "author": "automatelab.tech",
+  "homepage": "https://github.com/AutomateLab-tech/ai-seo",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AutomateLab-tech/ai-seo.git"
+  },
+  "engines": { "node": ">=20" },
+  "type": "module",
+  "bin": {
+    "ai-seo-mcp": "dist/index.js"
+  },
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src tests --ext .ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "cheerio": "1.0.0",
+    "fast-xml-parser": "5.8.0",
+    "robots-parser": "3.0.1",
+    "undici": "7.25.0",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.19",
+    "tsx": "4.22.0",
+    "typescript": "5.7.3",
+    "vitest": "3.2.4"
+  },
+  "files": [
+    "dist",
+    "src/lib/crawlers.json",
+    "src/lib/schema-types.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "mcp",
+    "seo",
+    "ai-seo",
+    "aeo",
+    "geo",
+    "ai-overview",
+    "schema",
+    "robots",
+    "llms-txt",
+    "citation"
+  ]
+}

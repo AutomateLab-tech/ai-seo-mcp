@@ -1,0 +1,268 @@
+// Tool: audit_page
+// Full AI-SEO audit of a single URL. Runs all sub-audits and returns a composite score.
+
+import { z } from "zod";
+import { politeFetch, ToolFetchError, type HostDelayMap } from "../lib/fetch.js";
+import { parseHead, parseBody } from "../lib/html.js";
+import { parseJsonLd, getAllSchemaTypes, validateJsonLd } from "../lib/schema.js";
+import { checkTechnical } from "./check-technical.js";
+import { auditSchema } from "./audit-schema.js";
+import { checkRobots } from "./check-robots.js";
+import { checkSitemap } from "./check-sitemap.js";
+import { scoreAiOverviewEligibility } from "./score-ai-overview-eligibility.js";
+import { freshnessScore, deriveGrade, computeWeightedScore } from "../lib/score.js";
+import type { Finding, AuditResult } from "../types.js";
+
+export const auditPageInputSchema = z.object({
+  url: z.string().url(),
+  include_raw_html: z.boolean().optional().default(false),
+  respect_robots: z.boolean().optional().default(true),
+});
+
+export type AuditPageInput = z.infer<typeof auditPageInputSchema>;
+
+export interface AuditPageResult extends AuditResult {
+  dimension_scores: {
+    schema: number;
+    robots: number;
+    technical: number;
+    freshness: number;
+    structure: number;
+    authority: number;
+    entity_density: number;
+    sitemap: number;
+  };
+  raw_html?: string;
+}
+
+export async function auditPage(input: AuditPageInput): Promise<AuditPageResult> {
+  const hostDelays: HostDelayMap = new Map();
+  const robotsCache = new Map<string, string>();
+
+  // Fetch URL once
+  const result = await politeFetch(input.url, {
+    respectRobots: input.respect_robots,
+    hostDelays,
+    robotsCache,
+  });
+
+  const ct = result.headers["content-type"];
+  const ctStr = Array.isArray(ct) ? ct[0] : (ct ?? "");
+  if (ctStr && !ctStr.includes("html")) {
+    throw new ToolFetchError({
+      type: "non_html_response",
+      url: input.url,
+      content_type: ctStr,
+    });
+  }
+
+  const fetched_at = new Date().toISOString();
+  const allFindings: Finding[] = [];
+
+  // --- Schema dimension ---
+  let schemaScore = 50;
+  try {
+    const schemaResult = await auditSchema(
+      { url: input.url, respect_robots: input.respect_robots },
+      hostDelays,
+      robotsCache
+    );
+    schemaScore = schemaResult.ai_citation_readiness_score;
+    allFindings.push(...schemaResult.findings);
+  } catch {
+    // schema audit failed - use default score
+  }
+
+  // --- Technical dimension ---
+  let technicalScore = 50;
+  try {
+    const techResult = await checkTechnical(
+      { url: input.url, respect_robots: input.respect_robots },
+      hostDelays,
+      robotsCache
+    );
+    // Derive technical score from findings
+    const techFindings = techResult.findings;
+    allFindings.push(...techFindings);
+    const criticals = techFindings.filter((f) => f.severity === "critical").length;
+    const warnings = techFindings.filter((f) => f.severity === "warning").length;
+    technicalScore = Math.max(0, 100 - criticals * 20 - warnings * 8);
+    // noindex is a killer
+    if (techResult.noindex) technicalScore = Math.max(0, technicalScore - 30);
+  } catch {
+    // technical audit failed
+  }
+
+  // --- Robots dimension ---
+  let robotsScore = 70;
+  try {
+    const hostname = new URL(input.url).hostname;
+    const robotsResult = await checkRobots({ domain: hostname });
+    const robotsFindings = robotsResult.findings.filter(
+      (f) => f.severity === "critical" || f.severity === "warning"
+    );
+    allFindings.push(...robotsResult.findings);
+    robotsScore = Math.max(
+      0,
+      100 -
+        robotsFindings.filter((f) => f.severity === "critical").length * 15 -
+        robotsFindings.filter((f) => f.severity === "warning").length * 7
+    );
+  } catch {
+    // robots check failed
+  }
+
+  // --- Page content for structure/freshness/authority/entity_density ---
+  const head = parseHead(result.body);
+  const body = parseBody(result.body, input.url);
+  const jsonLdBlocks = parseJsonLd(result.body);
+  const foundTypes = getAllSchemaTypes(jsonLdBlocks);
+
+  // --- Freshness dimension ---
+  let dateModified: string | null = null;
+  for (const b of jsonLdBlocks) {
+    const dm = b.parsed["dateModified"] ?? b.parsed["datePublished"];
+    if (typeof dm === "string") {
+      dateModified = dm;
+      break;
+    }
+  }
+  const freshnessScoreVal = freshnessScore(dateModified);
+  if (freshnessScoreVal < 50) {
+    allFindings.push({
+      severity: "warning",
+      category: "freshness",
+      where: "Article.dateModified",
+      message: dateModified
+        ? "Content appears stale (dateModified > 90 days ago)."
+        : "No dateModified found in structured data.",
+      fix: "Update content and set dateModified to today in Article JSON-LD.",
+      estimated_impact: "medium",
+    });
+  }
+
+  // --- Structure dimension ---
+  const hasFaq = foundTypes.includes("FAQPage") || body.h3s.some((h) => h.endsWith("?"));
+  const hasHowTo = foundTypes.includes("HowTo");
+  const hasOrderedList = body.orderedLists > 0;
+  const hasTable = body.tables > 0;
+  const goodHeadings = body.h2s.length >= 2;
+  let structureScore = 20;
+  if (hasFaq) structureScore += 30;
+  if (hasHowTo) structureScore += 15;
+  if (hasOrderedList) structureScore += 15;
+  if (hasTable) structureScore += 10;
+  if (goodHeadings) structureScore += 10;
+  structureScore = Math.min(100, structureScore);
+
+  if (!hasFaq) {
+    allFindings.push({
+      severity: "critical",
+      category: "structure",
+      where: "<body>",
+      message: "No FAQ structure found (no FAQPage schema or H3 question headings).",
+      fix: "Add FAQ H3 headings ending in '?' with answer paragraphs, and a FAQPage JSON-LD block.",
+      estimated_impact: "high",
+    });
+  }
+
+  // --- Authority dimension ---
+  const hasOrg = foundTypes.includes("Organization");
+  const hasPerson = jsonLdBlocks.some((b) => b.types.includes("Person"));
+  const hasArticleWithAuthorNode = jsonLdBlocks.some(
+    (b) =>
+      b.types.some((t) => ["Article", "BlogPosting", "NewsArticle"].includes(t)) &&
+      typeof b.parsed["author"] === "object" &&
+      b.parsed["author"] !== null
+  );
+  let authorityScore = 10;
+  if (hasOrg) authorityScore += 30;
+  if (hasPerson || hasArticleWithAuthorNode) authorityScore += 30;
+  const sameAsCount = jsonLdBlocks.reduce((acc, b) => {
+    const sa = b.parsed["sameAs"];
+    return acc + (Array.isArray(sa) ? sa.length : sa ? 1 : 0);
+  }, 0);
+  if (sameAsCount > 0) authorityScore += Math.min(30, sameAsCount * 5);
+  authorityScore = Math.min(100, authorityScore);
+
+  if (authorityScore < 40) {
+    allFindings.push({
+      severity: "warning",
+      category: "authority",
+      where: "page-level",
+      message: "Low authority signals - missing Organization or author Person schema.",
+      fix: "Add Organization JSON-LD and Article.author as a Person node with sameAs links.",
+      estimated_impact: "high",
+    });
+  }
+
+  // --- Entity density dimension ---
+  const authoritativeDomains = [
+    "wikipedia.org","wikidata.org",".gov","linkedin.com","twitter.com",
+    "x.com","crunchbase.com","bloomberg.com","reuters.com",
+  ];
+  const authExternalLinks = body.externalLinks.filter((href) =>
+    authoritativeDomains.some((d) => href.includes(d))
+  ).length;
+  const entityDensityScore = Math.min(100, (sameAsCount + authExternalLinks) * 7);
+
+  // --- Sitemap dimension ---
+  let sitemapScore = 50;
+  try {
+    const hostname = new URL(input.url).hostname;
+    const sitemapResult = await checkSitemap(
+      { domain: hostname, max_urls_to_check: 50 },
+      hostDelays,
+      robotsCache
+    );
+    if (sitemapResult.status === "found") {
+      sitemapScore = 80;
+      if (sitemapResult.urls_with_lastmod / Math.max(1, sitemapResult.total_urls) > 0.8) {
+        sitemapScore = 100;
+      }
+    } else {
+      sitemapScore = 20;
+    }
+  } catch {
+    // sitemap check failed
+  }
+
+  // --- Weighted composite score ---
+  const dimensionScores = {
+    schema: schemaScore,
+    robots: robotsScore,
+    technical: technicalScore,
+    freshness: freshnessScoreVal,
+    structure: structureScore,
+    authority: authorityScore,
+    entity_density: entityDensityScore,
+    sitemap: sitemapScore,
+  };
+
+  const score = computeWeightedScore(dimensionScores);
+  const grade = deriveGrade(score);
+
+  // Deduplicate findings (same message from multiple sub-tools)
+  const seen = new Set<string>();
+  const deduped = allFindings.filter((f) => {
+    const key = `${f.severity}:${f.category}:${f.message}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  const output: AuditPageResult = {
+    url: input.url,
+    fetched_at,
+    findings: deduped,
+    score,
+    grade,
+    dimension_scores: dimensionScores,
+  };
+
+  if (input.include_raw_html) {
+    output.raw_html = result.body;
+  }
+
+  return output;
+}

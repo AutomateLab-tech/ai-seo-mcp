@@ -1,0 +1,6 @@
+{
+  "training": ["GPTBot", "ClaudeBot", "CCBot", "Meta-ExternalAgent", "Amazonbot"],
+  "search": ["OAI-SearchBot", "Claude-SearchBot", "PerplexityBot", "Bingbot", "DuckAssistBot"],
+  "user_triggered": ["ChatGPT-User", "Claude-User", "Google-Agent"],
+  "robots_token_only": ["Google-Extended", "Applebot-Extended"]
+}

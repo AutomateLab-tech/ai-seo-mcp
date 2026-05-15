@@ -1,0 +1,263 @@
+// Tool: check_technical
+// Audits a page's HEAD section for technical signals relevant to AI crawlers.
+
+import { z } from "zod";
+import { politeFetch, ToolFetchError, type HostDelayMap } from "../lib/fetch.js";
+import { parseHead, levenshtein } from "../lib/html.js";
+import type { Finding } from "../types.js";
+
+export const checkTechnicalInputSchema = z.object({
+  url: z.string().url(),
+  respect_robots: z.boolean().optional().default(true),
+});
+
+export type CheckTechnicalInput = z.infer<typeof checkTechnicalInputSchema>;
+
+export interface TechnicalResult {
+  url: string;
+  https: boolean;
+  canonical: {
+    present: boolean;
+    value: string | null;
+    self_referential: boolean;
+    cross_domain: boolean;
+  };
+  noindex: boolean;
+  noindex_header: boolean;
+  og_tags: {
+    title: boolean;
+    description: boolean;
+    image: boolean;
+    url: boolean;
+    type: boolean;
+  };
+  twitter_card: {
+    present: boolean;
+    card_type: string | null;
+  };
+  hreflang: {
+    present: boolean;
+    count: number;
+    x_default: boolean;
+  };
+  title_og_match: boolean;
+  meta_description: {
+    present: boolean;
+    length: number;
+  };
+  findings: Finding[];
+}
+
+export async function checkTechnical(
+  input: CheckTechnicalInput,
+  hostDelays?: HostDelayMap,
+  robotsCache?: Map<string, string>
+): Promise<TechnicalResult> {
+  const result = await politeFetch(input.url, {
+    respectRobots: input.respect_robots,
+    hostDelays,
+    robotsCache,
+  });
+
+  const ct = result.headers["content-type"];
+  const ctStr = Array.isArray(ct) ? ct[0] : (ct ?? "");
+  if (ctStr && !ctStr.includes("html")) {
+    throw new ToolFetchError({
+      type: "non_html_response",
+      url: input.url,
+      content_type: ctStr,
+    });
+  }
+
+  const xRobotsTag = result.headers["x-robots-tag"];
+  const head = parseHead(result.body, xRobotsTag);
+  const findings: Finding[] = [];
+
+  // HTTPS
+  const https = input.url.startsWith("https://");
+
+  // Canonical
+  let canonicalSelfRef = false;
+  let canonicalCrossDomain = false;
+  if (head.canonical) {
+    try {
+      const pageUrl = new URL(result.finalUrl);
+      const canonUrl = new URL(head.canonical, input.url);
+      canonicalSelfRef =
+        canonUrl.hostname === pageUrl.hostname &&
+        canonUrl.pathname === pageUrl.pathname;
+      canonicalCrossDomain = canonUrl.hostname !== pageUrl.hostname;
+    } catch {
+      // ignore URL parse errors
+    }
+  }
+
+  if (!head.canonical) {
+    findings.push({
+      severity: "warning",
+      category: "technical",
+      where: "<head>",
+      message: "No canonical link element found.",
+      fix: 'Add <link rel="canonical" href="https://example.com/page"> to <head>.',
+      estimated_impact: "medium",
+    });
+  } else if (canonicalCrossDomain) {
+    findings.push({
+      severity: "warning",
+      category: "technical",
+      where: 'link[rel="canonical"]',
+      message: "Canonical points to a different domain.",
+      fix: "Verify this is intentional (syndicated content). If not, update to the self-referencing canonical.",
+      estimated_impact: "medium",
+    });
+  }
+
+  // noindex
+  if (head.noindex) {
+    findings.push({
+      severity: "critical",
+      category: "technical",
+      where: head.noindexHeader ? "X-Robots-Tag header" : 'meta[name="robots"]',
+      message: "Page has noindex directive - no AI search engine can index this page.",
+      fix: "Remove the noindex directive if you want this page to appear in AI search results.",
+      estimated_impact: "high",
+    });
+  }
+
+  // Redirect finding
+  if (result.redirected && result.finalUrl !== input.url) {
+    findings.push({
+      severity: "info",
+      category: "technical",
+      where: "page-level",
+      message: `Page redirects to ${result.finalUrl} - ensure canonical and OG tags reflect the canonical URL.`,
+      fix: "Update og:url and canonical href to the final redirect target URL.",
+    });
+  }
+
+  // OG tags
+  if (!head.ogTitle) {
+    findings.push({
+      severity: "warning",
+      category: "technical",
+      where: "og:title",
+      message: "og:title is missing.",
+      fix: 'Add <meta property="og:title" content="Page Title">.',
+      estimated_impact: "medium",
+    });
+  }
+  if (!head.ogDescription) {
+    findings.push({
+      severity: "warning",
+      category: "technical",
+      where: "og:description",
+      message: "og:description is missing.",
+      fix: 'Add <meta property="og:description" content="120-160 character description.">.',
+      estimated_impact: "medium",
+    });
+  }
+  if (!head.ogImage) {
+    findings.push({
+      severity: "warning",
+      category: "technical",
+      where: "og:image",
+      message: "og:image is missing.",
+      fix: 'Add <meta property="og:image" content="https://example.com/image.jpg">.',
+      estimated_impact: "medium",
+    });
+  }
+
+  // Twitter card
+  if (!head.twitterCard) {
+    findings.push({
+      severity: "info",
+      category: "technical",
+      where: "twitter:card",
+      message: "Twitter Card tags are absent.",
+      fix: 'Add <meta name="twitter:card" content="summary_large_image"> and twitter:title, twitter:description.',
+    });
+  }
+
+  // Meta description length
+  const metaDescLen = head.metaDescription?.length ?? 0;
+  if (!head.metaDescription) {
+    findings.push({
+      severity: "warning",
+      category: "technical",
+      where: 'meta[name="description"]',
+      message: "Meta description is missing.",
+      fix: 'Add <meta name="description" content="120-160 character description.">.',
+      estimated_impact: "medium",
+    });
+  } else if (metaDescLen < 50) {
+    findings.push({
+      severity: "warning",
+      category: "technical",
+      where: 'meta[name="description"]',
+      message: `Meta description is only ${metaDescLen} chars - too short (ideal: 120-160).`,
+      fix: "Expand the meta description to 120-160 characters summarizing the page content.",
+      estimated_impact: "low",
+    });
+  } else if (metaDescLen > 200) {
+    findings.push({
+      severity: "warning",
+      category: "technical",
+      where: 'meta[name="description"]',
+      message: `Meta description is ${metaDescLen} chars - too long (ideal: 120-160).`,
+      fix: "Trim the meta description to under 200 characters.",
+      estimated_impact: "low",
+    });
+  }
+
+  // Title/OG match
+  const titleOgMatch =
+    !head.title || !head.ogTitle
+      ? true // can't compare if either is missing
+      : levenshtein(head.title, head.ogTitle) <= 10;
+
+  if (!titleOgMatch) {
+    findings.push({
+      severity: "warning",
+      category: "technical",
+      where: "og:title vs <title>",
+      message: "og:title differs significantly from <title> - may signal content inconsistency.",
+      fix: "Align og:title with <title> or ensure the difference is intentional.",
+      estimated_impact: "low",
+    });
+  }
+
+  return {
+    url: input.url,
+    https,
+    canonical: {
+      present: !!head.canonical,
+      value: head.canonical,
+      self_referential: canonicalSelfRef,
+      cross_domain: canonicalCrossDomain,
+    },
+    noindex: head.noindex,
+    noindex_header: head.noindexHeader,
+    og_tags: {
+      title: !!head.ogTitle,
+      description: !!head.ogDescription,
+      image: !!head.ogImage,
+      url: !!head.ogUrl,
+      type: !!head.ogType,
+    },
+    twitter_card: {
+      present: !!head.twitterCard,
+      card_type: head.twitterCard,
+    },
+    hreflang: {
+      present: head.hreflangTags.length > 0,
+      count: head.hreflangTags.length,
+      x_default: head.hreflangTags.some((h) => h.lang === "x-default"),
+    },
+    title_og_match: titleOgMatch,
+    meta_description: {
+      present: !!head.metaDescription,
+      length: metaDescLen,
+    },
+    findings,
+  };
+}
