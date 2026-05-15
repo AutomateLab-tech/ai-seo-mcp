@@ -1,6 +1,7 @@
 {
   "name": "@automatelab/ai-seo-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
+  "mcpName": "io.github.AutomateLab-tech/ai-seo",
   "description": "MCP server for AI-SEO auditing: schema, robots.txt, llms.txt, citation scoring, and AEO/GEO rewrites",
   "license": "MIT",
   "author": "automatelab.tech",
