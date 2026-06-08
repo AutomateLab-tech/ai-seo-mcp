@@ -104,9 +104,9 @@ function wrapHandler<T>(handler: () => Promise<T>): Promise<ToolResponse> {
 // Renamed in v0.4.0 from the previous flat snake_case names.
 // ---------------------------------------------------------------------------
 
-// --- audit.page ---
+// --- audit_page ---
 server.registerTool(
-  "audit.page",
+  "audit_page",
   {
     title: "Audit page (full)",
     description: [
@@ -114,7 +114,7 @@ server.registerTool(
       "Read-only. Fetches the URL once and runs every sub-audit (schema, robots, technical, sitemap, AI-Overview eligibility) against the response. No writes, no third-party APIs, no auth required, no rate limits beyond polite per-host throttling.",
       "Deterministic, rule-based scoring; no LLM calls. Same URL + same input flags returns the same score.",
       "Supports `render: \"static\" | \"headless\"`. Default `static` (fast, raw HTML only). Use `headless` for React/Vue/Angular SPAs — adds 3-10s and requires the optional `playwright-core` peer dep plus a one-time `npx playwright install chromium`.",
-      "When to use: the default entry point for `audit any page`. Use this instead of calling check.technical / audit.schema / check.robots / check.sitemap / score.ai_overview_eligibility individually unless you specifically need only one dimension - this tool composes all of them.",
+      "When to use: the default entry point for `audit any page`. Use this instead of calling check_technical / audit_schema / check_robots / check_sitemap / score_ai_overview_eligibility individually unless you specifically need only one dimension - this tool composes all of them.",
     ].join("\n\n"),
     inputSchema: auditPageInputSchema.shape,
     outputSchema: auditPageOutputShape,
@@ -129,16 +129,16 @@ server.registerTool(
   async (input) => wrapHandler(() => auditPage(input)),
 );
 
-// --- audit.schema ---
+// --- audit_schema ---
 server.registerTool(
-  "audit.schema",
+  "audit_schema",
   {
     title: "Audit JSON-LD schema",
     description: [
       "Validate JSON-LD structured data against Schema.org rules and AI-citation best practices. Accepts either a URL (fetched) or a raw JSON string (parsed directly).",
       "Read-only when given `url` (one HTTP GET). Zero network when given `schema_json`. No writes.",
       "Deterministic, rule-based; no LLM. Validates required/recommended properties, @context correctness, sameAs links, and AI-search-friendly patterns.",
-      "When to use: focused JSON-LD audits, or to validate a schema block you're about to ship. For a full page audit that includes schema + everything else, use `audit.page` instead.",
+      "When to use: focused JSON-LD audits, or to validate a schema block you're about to ship. For a full page audit that includes schema + everything else, use `audit_page` instead.",
       "Either `url` or `schema_json` must be provided (not both). If both are provided, `schema_json` wins and no fetch happens.",
     ].join("\n\n"),
     inputSchema: {
@@ -174,16 +174,16 @@ server.registerTool(
   },
 );
 
-// --- audit.canonical ---
+// --- audit_canonical ---
 server.registerTool(
-  "audit.canonical",
+  "audit_canonical",
   {
     title: "Audit canonical link integrity",
     description: [
       "Audit a page's canonical link integrity: presence, self-reference, cross-domain mismatches, trailing-slash hygiene, and og:url consistency.",
       "Read-only. One HTTP GET to fetch the HEAD section.",
       "Deterministic, rule-based; no LLM.",
-      "When to use: a focused canonical-only audit (e.g. debugging a duplicate-content issue). For a full HEAD audit including OpenGraph, hreflang, noindex, title, use `check.technical`. For everything-on-a-page, use `audit.page`.",
+      "When to use: a focused canonical-only audit (e.g. debugging a duplicate-content issue). For a full HEAD audit including OpenGraph, hreflang, noindex, title, use `check_technical`. For everything-on-a-page, use `audit_page`.",
     ].join("\n\n"),
     inputSchema: auditCanonicalInputSchema.shape,
     outputSchema: auditCanonicalOutputShape,
@@ -198,16 +198,16 @@ server.registerTool(
   async (input) => wrapHandler(() => auditCanonical(input)),
 );
 
-// --- check.robots ---
+// --- check_robots ---
 server.registerTool(
-  "check.robots",
+  "check_robots",
   {
     title: "Check robots.txt crawler posture",
     description: [
       "Fetch and parse a domain's robots.txt; report per-crawler allow/disallow posture for every known AI training crawler (GPTBot, CCBot, Anthropic-AI, Google-Extended, etc.), AI search crawlers (ChatGPT-User, PerplexityBot, OAI-SearchBot), and user-triggered fetchers.",
       "Read-only. One HTTP GET to /robots.txt. No auth, no rate limits applied.",
       "Deterministic, rule-based; no LLM. Returns structured findings with per-crawler status.",
-      "When to use: figuring out which AI crawlers a site blocks vs allows. Combine with `check.sitemap` for a full pre-crawl audit. Distinct from `audit.page` which evaluates a single URL; this evaluates a whole-domain policy.",
+      "When to use: figuring out which AI crawlers a site blocks vs allows. Combine with `check_sitemap` for a full pre-crawl audit. Distinct from `audit_page` which evaluates a single URL; this evaluates a whole-domain policy.",
     ].join("\n\n"),
     inputSchema: checkRobotsInputSchema.shape,
     outputSchema: checkRobotsOutputShape,
@@ -222,16 +222,16 @@ server.registerTool(
   async (input) => wrapHandler(() => checkRobots(input)),
 );
 
-// --- check.sitemap ---
+// --- check_sitemap ---
 server.registerTool(
-  "check.sitemap",
+  "check_sitemap",
   {
     title: "Check XML sitemap health",
     description: [
       "Validate a domain's XML sitemap: presence, accessibility, URL count, lastmod freshness, sitemap-index handling, and image/video sitemap extensions.",
       "Read-only. Issues N+1 HTTP GETs: one for robots.txt + sitemap, then up to `max_urls_to_check` HEADs against sampled URLs.",
       "Deterministic, rule-based; no LLM.",
-      "When to use: site-wide indexing audits. Pair with `check.robots` for a full pre-crawl picture. For per-page checks, use `audit.page` or `check.technical` instead.",
+      "When to use: site-wide indexing audits. Pair with `check_robots` for a full pre-crawl picture. For per-page checks, use `audit_page` or `check_technical` instead.",
     ].join("\n\n"),
     inputSchema: checkSitemapInputSchema.shape,
     outputSchema: checkSitemapOutputShape,
@@ -246,16 +246,16 @@ server.registerTool(
   async (input) => wrapHandler(() => checkSitemap(input)),
 );
 
-// --- check.technical ---
+// --- check_technical ---
 server.registerTool(
-  "check.technical",
+  "check_technical",
   {
     title: "Check technical HEAD signals",
     description: [
       "Audit a page's HEAD section for technical signals relevant to AI crawlers: HTTPS, canonical, OpenGraph, Twitter Card, hreflang, noindex, and title-vs-H1 hygiene.",
       "Read-only. One HTTP GET, inspects HEAD only (body is not parsed).",
       "Deterministic, rule-based; no LLM.",
-      "When to use: when you specifically need HEAD-tag audit findings. For the full page including schema and AI-Overview scoring, use `audit.page`. For canonical-only, use `audit.canonical`.",
+      "When to use: when you specifically need HEAD-tag audit findings. For the full page including schema and AI-Overview scoring, use `audit_page`. For canonical-only, use `audit_canonical`.",
     ].join("\n\n"),
     inputSchema: checkTechnicalInputSchema.shape,
     outputSchema: checkTechnicalOutputShape,
@@ -270,16 +270,16 @@ server.registerTool(
   async (input) => wrapHandler(() => checkTechnical(input)),
 );
 
-// --- score.ai_overview_eligibility ---
+// --- score_ai_overview_eligibility ---
 server.registerTool(
-  "score.ai_overview_eligibility",
+  "score_ai_overview_eligibility",
   {
     title: "Score AI Overview eligibility",
     description: [
       "Score a page's probability of appearing in Google AI Overviews. Returns an overall 0-100 score plus six factor subscores: semantic completeness, structured data, E-E-A-T signals, entity density, freshness, and technical hygiene.",
       "Read-only. One HTTP GET.",
       "Deterministic, rule-based scoring derived from published 2025-2026 AI-Overview correlation studies. No LLM calls. Same URL returns the same score on repeated runs.",
-      "When to use: AI-Overview-specific prioritization. For a multi-dimensional audit that includes this scoring plus everything else, use `audit.page`. For citation-worthiness of a specific text passage (rather than a URL ranking probability), use `score.citation_worthiness`.",
+      "When to use: AI-Overview-specific prioritization. For a multi-dimensional audit that includes this scoring plus everything else, use `audit_page`. For citation-worthiness of a specific text passage (rather than a URL ranking probability), use `score_citation_worthiness`.",
     ].join("\n\n"),
     inputSchema: scoreAiOverviewEligibilityInputSchema.shape,
     outputSchema: scoreAiOverviewOutputShape,
@@ -294,16 +294,16 @@ server.registerTool(
   async (input) => wrapHandler(() => scoreAiOverviewEligibility(input)),
 );
 
-// --- score.agentic_browsing ---
+// --- score_agentic_browsing ---
 server.registerTool(
-  "score.agentic_browsing",
+  "score_agentic_browsing",
   {
     title: "Score Agentic Browsing readiness",
     description: [
       "Score a page against the four signals Google added to the Lighthouse \"Agentic Browsing\" category in May 2026: presence of an llms.txt, WebMCP integration, accessibility-tree integrity, and layout stability. Returns an overall 0-100 score, a letter grade, and a per-factor breakdown.",
       "Read-only. One HTTP GET for the page plus one for /llms.txt (skip with check_llms_txt=false). Pass `html` instead of `url` to score markup offline (llms.txt is then treated as absent).",
       "Deterministic, rule-based heuristics over the fetched HTML; no LLM and no headless render required. This approximates Lighthouse's runtime signals from static markup - it does not execute Lighthouse.",
-      "When to use: checking whether a site is ready for AI agents / agentic browsers, or tracking the new Lighthouse Agentic Browsing category. For citation-eligibility of content, use `score.citation_worthiness`; for a full page audit, use `audit.page`.",
+      "When to use: checking whether a site is ready for AI agents / agentic browsers, or tracking the new Lighthouse Agentic Browsing category. For citation-eligibility of content, use `score_citation_worthiness`; for a full page audit, use `audit_page`.",
     ].join("\n\n"),
     inputSchema: {
       url: z.string().url().optional().describe("Public URL to fetch and score. Either this OR `html` is required."),
@@ -329,16 +329,16 @@ server.registerTool(
   },
 );
 
-// --- llms_txt.generate ---
+// --- llms_txt_generate ---
 server.registerTool(
-  "llms_txt.generate",
+  "llms_txt_generate",
   {
     title: "Generate llms.txt",
     description: [
       "Generate a spec-compliant llms.txt (and optionally llms-full.txt) for a domain by reading its sitemap, sampling up to `max_pages` pages, and synthesizing a grouped, sectioned summary.",
       "Read-only. Issues one HTTP GET for the sitemap then one per sampled page.",
       "Deterministic; no LLM. Output is the file content as a string - this tool does NOT write to disk or upload anywhere. The caller is responsible for hosting the resulting file at `https://<domain>/llms.txt`.",
-      "When to use: bootstrapping llms.txt for a site you own. To check an existing llms.txt, use `llms_txt.validate` instead.",
+      "When to use: bootstrapping llms.txt for a site you own. To check an existing llms.txt, use `llms_txt_validate` instead.",
     ].join("\n\n"),
     inputSchema: generateLlmsTxtInputSchema.shape,
     outputSchema: generateLlmsTxtOutputShape,
@@ -353,9 +353,9 @@ server.registerTool(
   async (input) => wrapHandler(() => generateLlmsTxtTool(input)),
 );
 
-// --- pricing.generate ---
+// --- pricing_generate ---
 server.registerTool(
-  "pricing.generate",
+  "pricing_generate",
   {
     title: "Generate pricing.md",
     description: [
@@ -376,16 +376,16 @@ server.registerTool(
   async (input) => wrapHandler(() => generatePricingMdTool(input)),
 );
 
-// --- llms_txt.validate ---
+// --- llms_txt_validate ---
 server.registerTool(
-  "llms_txt.validate",
+  "llms_txt_validate",
   {
     title: "Validate llms.txt",
     description: [
       "Validate an existing llms.txt or llms-full.txt against the spec: structure, section ordering, link format, and (optionally) broken-link detection.",
       "Read-only. One HTTP GET when given `url`; zero network when given `content`. Optional link-check issues HEAD requests against each link if `check_links` is true.",
       "Deterministic; no LLM.",
-      "When to use: auditing an llms.txt you already have. To generate one from scratch, use `llms_txt.generate`.",
+      "When to use: auditing an llms.txt you already have. To generate one from scratch, use `llms_txt_generate`.",
       "Either `url` or `content` must be provided.",
     ].join("\n\n"),
     inputSchema: {
@@ -421,9 +421,9 @@ server.registerTool(
   },
 );
 
-// --- score.citation_worthiness ---
+// --- score_citation_worthiness ---
 server.registerTool(
-  "score.citation_worthiness",
+  "score_citation_worthiness",
   {
     title: "Score AI citation worthiness",
     description: [
@@ -431,7 +431,7 @@ server.registerTool(
       "Also returns `extractability_score` plus per-section `chunk_analysis`: how cleanly an LLM can lift a self-contained answer from each heading-delimited section (length band, lead-sentence directness, anaphora, concrete anchors). This is the GEO mechanic - it pinpoints the exact sections to tighten, with `most_extractable` / `least_extractable` called out.",
       "Read-only when given `url` (one HTTP GET). Zero network when given `text`. No writes.",
       "Deterministic, rule-based; no LLM calls. Returns reproducible scores.",
-      "When to use: pre-publish content QA, or to triage which existing pages are worth optimizing for AI citation first. Distinct from `score.ai_overview_eligibility` which scores Google-AI-Overview ranking probability for a URL; this scores the inherent citability of a text passage regardless of host.",
+      "When to use: pre-publish content QA, or to triage which existing pages are worth optimizing for AI citation first. Distinct from `score_ai_overview_eligibility` which scores Google-AI-Overview ranking probability for a URL; this scores the inherent citability of a text passage regardless of host.",
       "Either `url` or `text` must be provided.",
     ].join("\n\n"),
     inputSchema: {
@@ -471,16 +471,16 @@ server.registerTool(
   },
 );
 
-// --- rewrite.aeo ---
+// --- rewrite_aeo ---
 server.registerTool(
-  "rewrite.aeo",
+  "rewrite_aeo",
   {
     title: "Rewrite for Answer Engine Optimization",
     description: [
       "Rewrite a content block for Answer Engine Optimization. Adds a BLUF opening, FAQ structure, schema additions, and concise question-shaped headings tuned for ChatGPT / Perplexity / Google AI Overviews.",
       "Read-only when given `url` (one HTTP GET). Zero network when given `text`. The tool does NOT write back to the URL - it only returns the rewritten content as a string. No side effects on the source.",
       "This tool delegates the actual rewrite to the calling LLM via MCP sampling - it does not call any external API itself. The MCP host's model produces the rewrite. Same input may produce different output across runs (model-dependent).",
-      "When to use: optimizing content for direct-answer surfaces (definitions, how-tos, FAQs). For Generative Engine Optimization (entity-rich, comparison-ready synthesis), use `rewrite.geo` instead.",
+      "When to use: optimizing content for direct-answer surfaces (definitions, how-tos, FAQs). For Generative Engine Optimization (entity-rich, comparison-ready synthesis), use `rewrite_geo` instead.",
       "Either `url` or `text` must be provided. `target_query` is required.",
     ].join("\n\n"),
     inputSchema: {
@@ -534,16 +534,16 @@ server.registerTool(
   },
 );
 
-// --- rewrite.geo ---
+// --- rewrite_geo ---
 server.registerTool(
-  "rewrite.geo",
+  "rewrite_geo",
   {
     title: "Rewrite for Generative Engine Optimization",
     description: [
       "Rewrite a content block for Generative Engine Optimization: entity-rich, comparison-ready, synthesis-friendly. Tuned for surfaces that summarize across sources (Perplexity, Google AI Mode, Claude search).",
       "Read-only on input. Does NOT write back to the source URL - returns the rewritten content as a string.",
       "This tool delegates the actual rewrite to the calling LLM via MCP sampling - it does not call any external API itself. The MCP host's model produces the rewrite. Output may vary across runs (model-dependent).",
-      "When to use: optimizing for synthesis-style answers across multiple sources. For direct-answer (BLUF + FAQ) optimization on a single page, use `rewrite.aeo` instead.",
+      "When to use: optimizing for synthesis-style answers across multiple sources. For direct-answer (BLUF + FAQ) optimization on a single page, use `rewrite_aeo` instead.",
       "Either `url` or `text` must be provided. `target_query` is required.",
     ].join("\n\n"),
     inputSchema: {
@@ -597,16 +597,16 @@ server.registerTool(
   },
 );
 
-// --- extract.entities ---
+// --- extract_entities ---
 server.registerTool(
-  "extract.entities",
+  "extract_entities",
   {
     title: "Extract named entities and sameAs links",
     description: [
       "Extract named entities, linked concepts, and sameAs graph nodes from a page's content and structured data. Combines body-text NER with JSON-LD `@type` / `sameAs` walking.",
       "Read-only when given `url` (one HTTP GET). Zero network when given `text`.",
       "Primary path: MCP sampling - the host LLM does the NER and returns typed entities with sameAs URIs. Fallback path: deterministic regex-based extractor when sampling is unavailable. The result includes `mode: \"sampling\" | \"regex_fallback\"` so callers can tell which path ran.",
-      "When to use: building an entity map for schema generation, or auditing whether a page's entities match its target topic. To validate the JSON-LD itself, use `audit.schema`.",
+      "When to use: building an entity map for schema generation, or auditing whether a page's entities match its target topic. To validate the JSON-LD itself, use `audit_schema`.",
       "Either `url` or `text` must be provided.",
     ].join("\n\n"),
     inputSchema: {
@@ -650,16 +650,16 @@ server.registerTool(
   },
 );
 
-// --- score.test_citation ---
+// --- score_test_citation ---
 server.registerTool(
-  "score.test_citation",
+  "score_test_citation",
   {
     title: "Test whether an AI engine would cite this page",
     description: [
       "Simulate `would an AI engine cite this page for this query?`. The host LLM role-plays the chosen engine (chatgpt / claude / perplexity / google_ai_overviews / any), reads the page content, and returns a cite/no-cite verdict with the verbatim excerpt it would surface plus ranked improvements.",
       "Read-only when given `url` (one HTTP GET). Zero network when given `text`.",
-      "Primary path uses MCP sampling. If the host doesn't support sampling, falls back to a deterministic heuristic derived from `score.citation_worthiness` (overall_score + per-engine subscore must both clear thresholds). The result includes `mode: \"sampling\" | \"static_heuristic\"` so callers can tell which path ran.",
-      "When to use: pre-publish gut-check for a specific query, or auditing whether existing content earns citation surface. Distinct from `score.citation_worthiness` (deterministic 0-100 score) and `audit.page` (whole-page rubric); this returns a binary cite/no-cite verdict tied to one query.",
+      "Primary path uses MCP sampling. If the host doesn't support sampling, falls back to a deterministic heuristic derived from `score_citation_worthiness` (overall_score + per-engine subscore must both clear thresholds). The result includes `mode: \"sampling\" | \"static_heuristic\"` so callers can tell which path ran.",
+      "When to use: pre-publish gut-check for a specific query, or auditing whether existing content earns citation surface. Distinct from `score_citation_worthiness` (deterministic 0-100 score) and `audit_page` (whole-page rubric); this returns a binary cite/no-cite verdict tied to one query.",
       "Either `url` or `text` must be provided. `target_query` is required.",
     ].join("\n\n"),
     inputSchema: {
@@ -707,17 +707,17 @@ server.registerTool(
   },
 );
 
-// --- diff.pages ---
+// --- diff_pages ---
 server.registerTool(
-  "diff.pages",
+  "diff_pages",
   {
     title: "Diff two pages for citation-worthiness",
     description: [
       "Compare two URLs for AI citation-worthiness and return a structured breakdown of which page is more likely to be cited and why. Typical use: your page (url_a) vs a competitor's page (url_b).",
-      "Read-only. Runs audit.page on both URLs in parallel (2 HTTP fetches per URL), then diffs dimension_scores and findings. No new fetch logic beyond what audit.page already does.",
+      "Read-only. Runs audit_page on both URLs in parallel (2 HTTP fetches per URL), then diffs dimension_scores and findings. No new fetch logic beyond what audit_page already does.",
       "Deterministic, rule-based; no LLM calls. Same two URLs return the same comparison on repeated runs.",
-      "When to use: competitive gap analysis - understand exactly which dimensions (schema, structure, robots, entity density, freshness, technical, authority, sitemap) put a competitor ahead, and get prioritized fix_recommendations_for_a to close the gap. For a single-URL audit, use audit.page. For overall scoring of one page, use score.citation_worthiness.",
-      "Capped at 2 URLs per call. Heuristic verdict - does not claim to know what AI assistants actually cite; verdict matches audit.page's existing rubric.",
+      "When to use: competitive gap analysis - understand exactly which dimensions (schema, structure, robots, entity density, freshness, technical, authority, sitemap) put a competitor ahead, and get prioritized fix_recommendations_for_a to close the gap. For a single-URL audit, use audit_page. For overall scoring of one page, use score_citation_worthiness.",
+      "Capped at 2 URLs per call. Heuristic verdict - does not claim to know what AI assistants actually cite; verdict matches audit_page's existing rubric.",
     ].join("\n\n"),
     inputSchema: diffPagesInputSchema.shape,
     outputSchema: diffPagesOutputShape,
@@ -732,16 +732,16 @@ server.registerTool(
   async (input) => wrapHandler(() => diffPages(input)),
 );
 
-// --- audit.site ---
+// --- audit_site ---
 server.registerTool(
-  "audit.site",
+  "audit_site",
   {
     title: "Audit site (homepage + robots + sitemap + schema)",
     description: [
-      "Single-call site sweep: runs audit.page (homepage), check.robots, check.sitemap, and audit.schema in parallel and returns an overall grade (A–F) plus top-5 highest-impact fixes.",
-      "Read-only. Issues several HTTP GETs against the domain (homepage fetch, robots.txt, sitemap.xml, and up to 50 sitemap URL HEAD checks); no writes, no auth required, no rate limits beyond polite per-host throttling. The homepage GET is deduplicated across audit.page and audit.schema (~2 network fetches for 4 logical checks). Deterministic, rule-based scoring; no LLM calls. Same domain returns the same grade on repeated runs given unchanged content.",
-      "Output: domain, homepage_url, fetched_at, overall_score (0–100), overall_grade, top_5_fixes (Finding[]), and a parts breakdown with individual audit.page, check.robots, check.sitemap, and audit.schema results — each may be a full result or { error: string } when that sub-audit fails.",
-      "When to use: quick 'how does this site look overall?' — use when you want a single consolidated score and actionable fix list without calling 4 tools individually. Distinct from audit.sitemap (samples N pages from the sitemap, not just the homepage) and audit.page (single-URL deep dive with all findings, not just top-5).",
+      "Single-call site sweep: runs audit_page (homepage), check_robots, check_sitemap, and audit_schema in parallel and returns an overall grade (A–F) plus top-5 highest-impact fixes.",
+      "Read-only. Issues several HTTP GETs against the domain (homepage fetch, robots.txt, sitemap.xml, and up to 50 sitemap URL HEAD checks); no writes, no auth required, no rate limits beyond polite per-host throttling. The homepage GET is deduplicated across audit_page and audit_schema (~2 network fetches for 4 logical checks). Deterministic, rule-based scoring; no LLM calls. Same domain returns the same grade on repeated runs given unchanged content.",
+      "Output: domain, homepage_url, fetched_at, overall_score (0–100), overall_grade, top_5_fixes (Finding[]), and a parts breakdown with individual audit_page, check_robots, check_sitemap, and audit_schema results — each may be a full result or { error: string } when that sub-audit fails.",
+      "When to use: quick 'how does this site look overall?' — use when you want a single consolidated score and actionable fix list without calling 4 tools individually. Distinct from audit_sitemap (samples N pages from the sitemap, not just the homepage) and audit_page (single-URL deep dive with all findings, not just top-5).",
     ].join("\n\n"),
     inputSchema: auditSiteInputSchema.shape,
     outputSchema: auditSiteOutputShape,
@@ -756,16 +756,16 @@ server.registerTool(
   async (input) => wrapHandler(() => auditSite(input)),
 );
 
-// --- audit.sitemap ---
+// --- audit_sitemap ---
 server.registerTool(
-  "audit.sitemap",
+  "audit_sitemap",
   {
     title: "Audit a site's content by sampling its sitemap",
     description: [
-      "Site-wide content audit: discovers the sitemap, samples N URLs by deterministic uniform stride, runs audit.page on each, and returns score distribution + worst pages + most-common findings.",
-      "Read-only. One HTTP GET for sitemap discovery, optionally a few more for sitemap-index children, then `sample_size` × audit.page calls (each one HTTP GET + parsing). Polite throttling is enforced per host.",
+      "Site-wide content audit: discovers the sitemap, samples N URLs by deterministic uniform stride, runs audit_page on each, and returns score distribution + worst pages + most-common findings.",
+      "Read-only. One HTTP GET for sitemap discovery, optionally a few more for sitemap-index children, then `sample_size` × audit_page calls (each one HTTP GET + parsing). Polite throttling is enforced per host.",
       "Deterministic — same domain + same sample_size returns the same set of URLs (uniform-stride sampling). Per-page scoring is rule-based; no LLM.",
-      "When to use: portfolio-level health check across a site (\"how does our content score on average?\"). Distinct from `audit.site` (homepage-only composite) and `check.sitemap` (validates sitemap.xml structure, not page content).",
+      "When to use: portfolio-level health check across a site (\"how does our content score on average?\"). Distinct from `audit_site` (homepage-only composite) and `check_sitemap` (validates sitemap.xml structure, not page content).",
     ].join("\n\n"),
     inputSchema: auditSitemapInputSchema.shape,
     outputSchema: auditSitemapOutputShape,
@@ -780,13 +780,13 @@ server.registerTool(
   async (input) => wrapHandler(() => auditSitemap(input)),
 );
 
-// --- report.save ---
+// --- report_save ---
 server.registerTool(
-  "report.save",
+  "report_save",
   {
     title: "Save audit report to disk",
     description:
-      "Render an audit.page or audit.site result as a Markdown report and write it to a file under MCP_WORKSPACE_ROOT (defaults to cwd).",
+      "Render an audit_page or audit_site result as a Markdown report and write it to a file under MCP_WORKSPACE_ROOT (defaults to cwd).",
     inputSchema: saveAuditReportInputSchema.shape,
     outputSchema: saveReportOutputShape,
     annotations: {
@@ -819,9 +819,9 @@ server.prompt(
         content: {
           type: "text",
           text:
-            `Call the \`audit.site\` tool with domain="${domain}" and respect_robots=true. ` +
+            `Call the \`audit_site\` tool with domain="${domain}" and respect_robots=true. ` +
             `When the result returns, summarize the overall_grade, the top_5_fixes (highest-impact first), ` +
-            `and the content_quality from the underlying audit.page. Recommend the single most leveraged fix first.`,
+            `and the content_quality from the underlying audit_page. Recommend the single most leveraged fix first.`,
         },
       },
     ],
@@ -839,7 +839,7 @@ server.prompt(
         content: {
           type: "text",
           text:
-            `Call \`audit.page\` with url="${url}" and respect_robots=true. ` +
+            `Call \`audit_page\` with url="${url}" and respect_robots=true. ` +
             `From the result, filter findings to severity="critical" only. ` +
             `Group them by category and present a prioritized fix list. ` +
             `Ignore warnings and info-level findings for this pass.`,
@@ -860,7 +860,7 @@ server.prompt(
         content: {
           type: "text",
           text:
-            `Call \`llms_txt.generate\` with domain="${domain}", max_pages=50, include_full=false. ` +
+            `Call \`llms_txt_generate\` with domain="${domain}", max_pages=50, include_full=false. ` +
             `Return the generated llms.txt verbatim in a code block, then summarize how many pages were indexed.`,
         },
       },
@@ -879,7 +879,7 @@ server.prompt(
         content: {
           type: "text",
           text:
-            `Call \`check.robots\` with domain="${domain}". ` +
+            `Call \`check_robots\` with domain="${domain}". ` +
             `From the result, build a table grouped by training_crawlers / search_crawlers / user_triggered, ` +
             `with one row per crawler and an allowed/blocked verdict. ` +
             `Highlight any AI search crawlers that are blocked - those silently kill citation surface.`,
@@ -903,7 +903,7 @@ server.prompt(
         content: {
           type: "text",
           text:
-            `Call \`score.citation_worthiness\` with url="${url}", target_query="${target_query}", respect_robots=true. ` +
+            `Call \`score_citation_worthiness\` with url="${url}", target_query="${target_query}", respect_robots=true. ` +
             `Present overall_score and per-engine scores (Perplexity, ChatGPT, Google AI Overviews, Claude). ` +
             `Then suggest the 3 most impactful structural changes (BLUF opening, FAQ blocks, entity density) to lift the lowest score.`,
         },
@@ -962,7 +962,7 @@ robots.txt allows OAI-SearchBot, PerplexityBot, Claude-SearchBot. Blocking train
 ## 13. Sitemap freshness
 XML sitemap present, lastmod >80% coverage, listed in robots.txt.
 
-Use \`audit.page\` to score a URL across all 13 signals at once.
+Use \`audit_page\` to score a URL across all 13 signals at once.
 `;
 
 const CRAWLERS_DOC = `# AI crawlers reference
@@ -1017,7 +1017,7 @@ Allow: /
 \`\`\`
 (Blocks training, allows everything else - including search crawlers.)
 
-Use \`check.robots\` to see your current posture per crawler.
+Use \`check_robots\` to see your current posture per crawler.
 `;
 
 server.resource(

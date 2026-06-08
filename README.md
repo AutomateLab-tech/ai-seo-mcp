@@ -134,27 +134,27 @@ The Action builds the auditor from the pinned ref, runs `audit_page` on each URL
 
 | Tool | Purpose |
 |------|---------|
-| `audit.page` | Composite AI-SEO audit with 8-dimension scoring (schema, technical, structure, robots, freshness, authority, entity density, sitemap). |
-| `audit.schema` | Validate JSON-LD against Schema.org rules and AI-citation best practice. Flags deprecated patterns. |
-| `audit.canonical` | Canonical link integrity, trailing-slash hygiene, `og:url` consistency. |
-| `audit.site` | Single-call site sweep: `audit.page` + `check.robots` + `check.sitemap` + `audit.schema` with overall grade and top-5 fixes. |
-| `audit.sitemap` | Site-wide content audit: stride-sample N URLs from the sitemap, run `audit.page` on each, return distribution + worst pages + top findings. |
-| `check.robots` | Parse `robots.txt` and report per-crawler allow/disallow for all known AI crawlers. Surfaces the GPTBot-blocked-but-OAI-SearchBot-allowed trap. |
-| `check.sitemap` | Validate XML sitemaps: presence, URL count, `lastmod` freshness, image/video extensions. |
-| `check.technical` | HEAD tag audit: canonical, OpenGraph, Twitter Card, hreflang, HTTPS, noindex, title hygiene. |
-| `score.ai_overview_eligibility` | Score a page's probability of appearing in Google AI Overviews using current correlation factors. |
-| `score.citation_worthiness` | Score how citable a page or text block is for Perplexity, ChatGPT, Google AI Overviews, and Claude. Includes per-section `chunk_analysis` / `extractability_score`: how cleanly an LLM can lift a standalone answer from each heading. |
-| `score.agentic_browsing` | Score a page against the Lighthouse "Agentic Browsing" category (May 2026): llms.txt, WebMCP, accessibility-tree integrity, and layout stability. |
-| `score.test_citation` | Simulate "would an AI engine cite this for this query?" via MCP sampling, with deterministic heuristic fallback. |
-| `llms_txt.generate` | Generate `llms.txt` and optionally `llms-full.txt` from a domain's sitemap. |
-| `llms_txt.validate` | Lint an existing `llms.txt` for spec compliance and broken links. |
-| `rewrite.aeo` | Rewrite content for Answer Engine Optimization (BLUF structure, FAQ format, schema additions). |
-| `rewrite.geo` | Rewrite content for Generative Engine Optimization (entity definitions, comparison tables, synthesis-ready structure). |
-| `extract.entities` | Extract named entities, `sameAs` links, and citation-density score from a page's content and structured data. |
-| `diff.pages` | Compare two URLs for AI citation-worthiness: side-by-side dimension scores, gap analysis, and prioritized fix recommendations for url_a. |
-| `report.save` | Render an `audit.page` / `audit.site` result as a Markdown report and write it to disk under `MCP_WORKSPACE_ROOT`. |
+| `audit_page` | Composite AI-SEO audit with 8-dimension scoring (schema, technical, structure, robots, freshness, authority, entity density, sitemap). |
+| `audit_schema` | Validate JSON-LD against Schema.org rules and AI-citation best practice. Flags deprecated patterns. |
+| `audit_canonical` | Canonical link integrity, trailing-slash hygiene, `og:url` consistency. |
+| `audit_site` | Single-call site sweep: `audit_page` + `check_robots` + `check_sitemap` + `audit_schema` with overall grade and top-5 fixes. |
+| `audit_sitemap` | Site-wide content audit: stride-sample N URLs from the sitemap, run `audit_page` on each, return distribution + worst pages + top findings. |
+| `check_robots` | Parse `robots.txt` and report per-crawler allow/disallow for all known AI crawlers. Surfaces the GPTBot-blocked-but-OAI-SearchBot-allowed trap. |
+| `check_sitemap` | Validate XML sitemaps: presence, URL count, `lastmod` freshness, image/video extensions. |
+| `check_technical` | HEAD tag audit: canonical, OpenGraph, Twitter Card, hreflang, HTTPS, noindex, title hygiene. |
+| `score_ai_overview_eligibility` | Score a page's probability of appearing in Google AI Overviews using current correlation factors. |
+| `score_citation_worthiness` | Score how citable a page or text block is for Perplexity, ChatGPT, Google AI Overviews, and Claude. Includes per-section `chunk_analysis` / `extractability_score`: how cleanly an LLM can lift a standalone answer from each heading. |
+| `score_agentic_browsing` | Score a page against the Lighthouse "Agentic Browsing" category (May 2026): llms.txt, WebMCP, accessibility-tree integrity, and layout stability. |
+| `score_test_citation` | Simulate "would an AI engine cite this for this query?" via MCP sampling, with deterministic heuristic fallback. |
+| `llms_txt_generate` | Generate `llms.txt` and optionally `llms-full.txt` from a domain's sitemap. |
+| `llms_txt_validate` | Lint an existing `llms.txt` for spec compliance and broken links. |
+| `rewrite_aeo` | Rewrite content for Answer Engine Optimization (BLUF structure, FAQ format, schema additions). |
+| `rewrite_geo` | Rewrite content for Generative Engine Optimization (entity definitions, comparison tables, synthesis-ready structure). |
+| `extract_entities` | Extract named entities, `sameAs` links, and citation-density score from a page's content and structured data. |
+| `diff_pages` | Compare two URLs for AI citation-worthiness: side-by-side dimension scores, gap analysis, and prioritized fix recommendations for url_a. |
+| `report_save` | Render an `audit_page` / `audit_site` result as a Markdown report and write it to disk under `MCP_WORKSPACE_ROOT`. |
 
-> **v0.4.0** renamed tools from flat `snake_case` to dot-notation (`audit.page`, `check.robots`, …) for a navigable hierarchy. Update any saved invocations.
+> **v0.4.0** renamed tools from flat `snake_case` to dot-notation (`audit_page`, `check_robots`, …) for a navigable hierarchy. Update any saved invocations.
 
 Environment variables: see [ENV.md](./ENV.md).
 

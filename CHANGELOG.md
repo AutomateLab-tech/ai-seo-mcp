@@ -4,19 +4,25 @@ All notable changes to `@automatelab/ai-seo-mcp` are documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-06-08
+
+### Changed
+
+**Breaking:** MCP wire names no longer use dots. Anthropic's Messages API (and MCP clients that forward tool definitions to it — Claude Desktop, Claude Code, Zed, etc.) reject tool names outside `^[a-zA-Z0-9_-]{1,64}$`. All 19 tools renamed: namespace separator is now `_` instead of `.` (e.g. `audit.page` → `audit_page`). Semantics unchanged.
+
 ## [0.6.1] - 2026-06-02
 
 ### Fixed
 
-- **`llms_txt.generate` output-schema validation.** The handler omitted the required `domain` field, so the SDK rejected every response with `MCP error -32602` (invalid `structuredContent`). `domain` is now populated, and `llms_full_txt` is relaxed to nullable to match the handler's `null`-when-`include_full=false` return.
-- **`llms_txt.generate` now follows sitemap-index files.** It previously parsed only a top-level `<urlset>`, so sites whose `sitemap.xml` is an index pointing at child sitemaps fell back to the homepage only. It now walks the referenced child sitemaps (bounded breadth-first) and indexes the full `max_pages`.
+- **`llms_txt_generate` output-schema validation.** The handler omitted the required `domain` field, so the SDK rejected every response with `MCP error -32602` (invalid `structuredContent`). `domain` is now populated, and `llms_full_txt` is relaxed to nullable to match the handler's `null`-when-`include_full=false` return.
+- **`llms_txt_generate` now follows sitemap-index files.** It previously parsed only a top-level `<urlset>`, so sites whose `sitemap.xml` is an index pointing at child sitemaps fell back to the homepage only. It now walks the referenced child sitemaps (bounded breadth-first) and indexes the full `max_pages`.
 
 ## [0.6.0] - 2026-06-01
 
 ### Added
 
-- **`score.agentic_browsing`** — new tool scoring a page against Lighthouse's Agentic Browsing signals: `llms_txt`, `webmcp`, `accessibility_tree`, and `layout_stability` (0-100 each), with a letter grade and findings.
-- **Chunk-level extractability in `score.citation_worthiness`** — section-by-section scoring of how cleanly an LLM can lift a self-contained answer from each chunk, surfaced as a length-weighted `extractability_score` plus per-chunk analysis and the most/least extractable sections.
+- **`score_agentic_browsing`** — new tool scoring a page against Lighthouse's Agentic Browsing signals: `llms_txt`, `webmcp`, `accessibility_tree`, and `layout_stability` (0-100 each), with a letter grade and findings.
+- **Chunk-level extractability in `score_citation_worthiness`** — section-by-section scoring of how cleanly an LLM can lift a self-contained answer from each chunk, surfaced as a length-weighted `extractability_score` plus per-chunk analysis and the most/least extractable sections.
 
 ## [0.5.1] - 2026-06-01
 
@@ -27,14 +33,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ### Added
 
 - **`openclaw.plugin.json`** + a clawhub `SKILL.md` so the MCP lists on clawhub / OpenClaw.
-- Expanded the `audit.site` description (Glama listing) with behavioral transparency and when-to-use guidance.
+- Expanded the `audit_site` description (Glama listing) with behavioral transparency and when-to-use guidance.
 
 ## [0.5.0] - 2026-05-26
 
 ### Added
 
-- **Body-quality dimensions in `audit.page`** — image alt-text coverage, anchor-text quality, heading hierarchy, Title↔H1 overlap, and readability.
-- **Response-header dimensions in `audit.page`** — mixed-content detection plus HSTS, `X-Content-Type-Options`, and `Referrer-Policy` checks.
+- **Body-quality dimensions in `audit_page`** — image alt-text coverage, anchor-text quality, heading hierarchy, Title↔H1 overlap, and readability.
+- **Response-header dimensions in `audit_page`** — mixed-content detection plus HSTS, `X-Content-Type-Options`, and `Referrer-Policy` checks.
 - **`.mcp.json`** at repo root for Open Plugins / cursor.directory compatibility.
 
 ## [0.4.1] - 2026-05-23
@@ -52,25 +58,25 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
-- **Breaking: tool rename to dot-notation.** All tools migrated from flat snake_case (`audit_page`, `check_robots`, …) to a navigable dot-notation tree (`audit.page`, `check.robots`, …). Categories: `audit.*`, `check.*`, `score.*`, `llms_txt.*`, `rewrite.*`, `extract.*`, `diff.*`, `report.*`. Update any saved invocations.
+- **Breaking: tool rename to dot-notation.** All tools migrated from flat snake_case (`audit_page`, `check_robots`, …) to a navigable dot-notation tree (`audit_page`, `check_robots`, …). Categories: `audit.*`, `check.*`, `score.*`, `llms_txt.*`, `rewrite.*`, `extract.*`, `diff.*`, `report.*`. Update any saved invocations.
 
 ### Added
 
 - **`outputSchema` (Zod) on every tool** — callers can type-check responses; hosts can reason about return shape before calling. Returns now also surface `structuredContent` alongside the legacy `content` text block.
 - **MCP `annotations` on every tool** — `title`, `readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`. Hosts use these to decide whether to auto-approve a call, prompt the user, or block.
-- **`.describe()` on every input parameter** that lacked one (`audit.site`, `report.save`) — input schemas are now fully self-documenting.
+- **`.describe()` on every input parameter** that lacked one (`audit_site`, `report_save`) — input schemas are now fully self-documenting.
 
 ### Migration
 
 - `server.tool()` → `server.registerTool()` throughout.
 - Rename map (use sed/IDE find-replace on any saved configs):
-  `audit_page → audit.page`, `audit_schema → audit.schema`, `audit_canonical → audit.canonical`,
-  `audit_site → audit.site`, `audit_sitemap → audit.sitemap`,
-  `check_robots → check.robots`, `check_sitemap → check.sitemap`, `check_technical → check.technical`,
-  `score_ai_overview_eligibility → score.ai_overview_eligibility`, `score_citation_worthiness → score.citation_worthiness`, `test_citation → score.test_citation`,
-  `generate_llms_txt → llms_txt.generate`, `validate_llms_txt → llms_txt.validate`,
-  `rewrite_for_aeo → rewrite.aeo`, `rewrite_for_geo → rewrite.geo`,
-  `extract_entities → extract.entities`, `diff_pages → diff.pages`, `save_audit_report → report.save`.
+  `audit_page → audit_page`, `audit_schema → audit_schema`, `audit_canonical → audit_canonical`,
+  `audit_site → audit_site`, `audit_sitemap → audit_sitemap`,
+  `check_robots → check_robots`, `check_sitemap → check_sitemap`, `check_technical → check_technical`,
+  `score_ai_overview_eligibility → score_ai_overview_eligibility`, `score_citation_worthiness → score_citation_worthiness`, `test_citation → score_test_citation`,
+  `generate_llms_txt → llms_txt_generate`, `validate_llms_txt → llms_txt_validate`,
+  `rewrite_for_aeo → rewrite_aeo`, `rewrite_for_geo → rewrite_geo`,
+  `extract_entities → extract_entities`, `diff_pages → diff_pages`, `save_audit_report → report_save`.
 
 ## [0.3.4] - 2026-05-18
 

@@ -1,4 +1,4 @@
-// Tool: pricing.generate
+// Tool: pricing_generate
 // Generates a machine-readable /pricing.md for AI agents (agent commerce).
 //
 // LLM-driven shopping/agent flows increasingly look for a structured pricing
