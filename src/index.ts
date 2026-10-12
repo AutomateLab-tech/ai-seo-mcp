@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { readFileSync as readMcpPackage } from "node:fs";
+const MCP_PACKAGE_VERSION: string = JSON.parse(readMcpPackage(new URL("../package.json", import.meta.url), "utf8")).version;
 // AI-SEO MCP Server - entrypoint.
 // All logging goes to stderr. stdout is reserved for JSON-RPC transport.
 
@@ -52,7 +54,7 @@ import { ToolFetchError } from "./lib/fetch.js";
 
 const server = new McpServer({
   name: "@automatelab/ai-seo-mcp",
-  version: "0.4.1",
+  version: MCP_PACKAGE_VERSION,
 });
 
 type ToolResponse = {
