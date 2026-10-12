@@ -130,7 +130,7 @@ The Action builds the auditor from the pinned ref, runs `audit_page` on each URL
 ---
 
 <details>
-<summary>MCP tool surface (19 tools)</summary>
+<summary>MCP tool surface (20 tools)</summary>
 
 | Tool | Purpose |
 |------|---------|
