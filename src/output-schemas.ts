@@ -107,91 +107,70 @@ export const checkRobotsOutputShape = {
 } as const;
 
 export const checkSitemapOutputShape = {
-  domain: z.string().describe("The hostname the sitemap was checked for."),
-  fetched_at: z.string().describe("UTC ISO-8601 timestamp of the check."),
-  status: z.enum(["found", "missing", "error"]).describe("Outcome of the sitemap lookup."),
-  sitemap_url: z.string().nullable().describe("Resolved sitemap URL (null when status != found)."),
-  total_urls: z.number().describe("Total URLs declared across the sitemap (and indexed children)."),
-  urls_with_lastmod: z.number().describe("Count of URLs that carry a lastmod attribute."),
-  findings: z.array(findingSchema),
+  sitemap_url: z.union([z.null(), z.string()]),
+  status: z.enum(["found","missing","error"]),
+  total_urls: z.number(),
+  urls_with_lastmod: z.number(),
+  stale_urls: z.number(),
+  has_image_sitemap: z.boolean(),
+  has_video_sitemap: z.boolean(),
+  sitemap_index: z.boolean(),
+  findings: z.array(z.object({"severity": z.enum(["critical","warning","info"]), "category": z.enum(["schema","robots","technical","freshness","structure","authority","presence","sitemap","llms_txt","citation","evidence","trust","entity","content"]), "where": z.string(), "message": z.string(), "fix": z.string(), "estimated_impact": z.union([z.undefined(), z.literal("high"), z.literal("medium"), z.literal("low")]).optional(), "failure_signal": z.union([z.undefined(), z.string()]).optional(), "leading_indicator": z.union([z.undefined(), z.string()]).optional()})),
 } as const;
 
 export const checkTechnicalOutputShape = {
   url: z.string(),
-  fetched_at: z.string(),
-  https: z.boolean().describe("Whether the URL is served over HTTPS after redirects."),
-  canonical: z.string().nullable().describe("Canonical link href, if present."),
-  og_url: z.string().nullable().describe("OpenGraph og:url, if present."),
-  noindex: z.boolean().describe("Whether meta robots includes noindex."),
-  title: z.string().nullable().describe("Page title text."),
-  h1: z.string().nullable().describe("First H1 text."),
-  findings: z.array(findingSchema),
+  https: z.boolean(),
+  canonical: z.object({"present": z.boolean(), "value": z.union([z.null(), z.string()]), "self_referential": z.boolean(), "cross_domain": z.boolean()}),
+  noindex: z.boolean(),
+  noindex_header: z.boolean(),
+  og_tags: z.object({"title": z.boolean(), "description": z.boolean(), "image": z.boolean(), "url": z.boolean(), "type": z.boolean()}),
+  twitter_card: z.object({"present": z.boolean(), "card_type": z.union([z.null(), z.string()])}),
+  hreflang: z.object({"present": z.boolean(), "count": z.number(), "x_default": z.boolean()}),
+  title_og_match: z.boolean(),
+  meta_description: z.object({"present": z.boolean(), "length": z.number()}),
+  response_headers: z.object({"hsts": z.union([z.null(), z.string()]), "x_content_type_options": z.union([z.null(), z.string()]), "referrer_policy": z.union([z.null(), z.string()]), "content_security_policy": z.union([z.null(), z.string()]), "cache_control": z.union([z.null(), z.string()])}),
+  mixed_content: z.object({"count": z.number(), "samples": z.array(z.string())}),
+  findings: z.array(z.object({"severity": z.enum(["critical","warning","info"]), "category": z.enum(["schema","robots","technical","freshness","structure","authority","presence","sitemap","llms_txt","citation","evidence","trust","entity","content"]), "where": z.string(), "message": z.string(), "fix": z.string(), "estimated_impact": z.union([z.undefined(), z.literal("high"), z.literal("medium"), z.literal("low")]).optional(), "failure_signal": z.union([z.undefined(), z.string()]).optional(), "leading_indicator": z.union([z.undefined(), z.string()]).optional()})),
 } as const;
 
 export const auditSchemaOutputShape = {
-  source: z.enum(["url", "inline"]).describe("Where the JSON-LD came from."),
-  url: z.string().nullable().describe("Source URL (null when source=inline)."),
-  fetched_at: z.string().nullable(),
-  found_types: z.array(z.string()).describe("Schema.org @type values discovered across all JSON-LD blocks."),
-  ai_citation_readiness_score: z.number().min(0).max(100).describe("0-100 score for the JSON-LD's AI-citation readiness."),
-  findings: z.array(findingSchema),
+  source: z.enum(["url","inline"]),
+  found_types: z.array(z.string()),
+  missing_priority_types: z.array(z.string()),
+  findings: z.array(z.object({"severity": z.enum(["critical","warning","info"]), "category": z.enum(["schema","robots","technical","freshness","structure","authority","presence","sitemap","llms_txt","citation","evidence","trust","entity","content"]), "where": z.string(), "message": z.string(), "fix": z.string(), "estimated_impact": z.union([z.undefined(), z.literal("high"), z.literal("medium"), z.literal("low")]).optional(), "failure_signal": z.union([z.undefined(), z.string()]).optional(), "leading_indicator": z.union([z.undefined(), z.string()]).optional()})),
+  ai_citation_readiness_score: z.number().min(0).max(100),
 } as const;
 
 export const auditCanonicalOutputShape = {
   url: z.string(),
-  fetched_at: z.string(),
-  canonical: z.string().nullable(),
-  og_url: z.string().nullable(),
-  self_referencing: z.boolean().describe("Whether the canonical points to the audited URL."),
-  cross_domain: z.boolean().describe("Whether the canonical points to a different domain."),
-  findings: z.array(findingSchema),
+  final_url: z.string(),
+  canonical_value: z.union([z.null(), z.string()]),
+  is_self_referential: z.boolean(),
+  is_cross_domain: z.boolean(),
+  trailing_slash_consistent: z.boolean(),
+  canonical_og_url_match: z.boolean(),
+  findings: z.array(z.object({"severity": z.enum(["critical","warning","info"]), "category": z.enum(["schema","robots","technical","freshness","structure","authority","presence","sitemap","llms_txt","citation","evidence","trust","entity","content"]), "where": z.string(), "message": z.string(), "fix": z.string(), "estimated_impact": z.union([z.undefined(), z.literal("high"), z.literal("medium"), z.literal("low")]).optional(), "failure_signal": z.union([z.undefined(), z.string()]).optional(), "leading_indicator": z.union([z.undefined(), z.string()]).optional()})),
 } as const;
 
 export const scoreAiOverviewOutputShape = {
   url: z.string(),
-  fetched_at: z.string(),
-  overall_eligibility_score: z.number().min(0).max(100),
-  factors: z
-    .object({
-      semantic_completeness: z.number(),
-      structured_data: z.number(),
-      eeat_signals: z.number(),
-      entity_density: z.number(),
-      freshness: z.number(),
-      technical_hygiene: z.number(),
-    })
-    .describe("Per-factor 0-100 subscores."),
-  top_improvements: z.array(z.object({ factor: z.string(), suggestion: z.string() })),
+  overall_eligibility_score: z.number(),
+  factors: z.object({"semantic_completeness": z.number(), "structured_data": z.number(), "eeat_signals": z.number(), "entity_density": z.number(), "content_freshness": z.number(), "passage_structure": z.number(), "multimodal_content": z.number()}),
+  top_improvements: z.array(z.object({"action": z.string(), "estimated_score_gain": z.number()})),
+  findings: z.array(z.object({"severity": z.enum(["critical","warning","info"]), "category": z.enum(["schema","robots","technical","freshness","structure","authority","presence","sitemap","llms_txt","citation","evidence","trust","entity","content"]), "where": z.string(), "message": z.string(), "fix": z.string(), "estimated_impact": z.union([z.undefined(), z.literal("high"), z.literal("medium"), z.literal("low")]).optional(), "failure_signal": z.union([z.undefined(), z.string()]).optional(), "leading_indicator": z.union([z.undefined(), z.string()]).optional()})),
 } as const;
 
 export const scoreCitationOutputShape = {
-  source: z.enum(["url", "text"]),
-  url: z.string().nullable(),
-  target_query: z.string().nullable(),
-  overall_score: z.number().min(0).max(100),
-  engine_scores: z.object({
-    perplexity: z.number(),
-    chatgpt: z.number(),
-    google_ai_overviews: z.number(),
-    claude: z.number(),
-  }),
-  signals: z.record(z.string(), z.number()).describe("Per-signal subscores (bluf, faq, stats, entities, etc.)."),
-  suggestions: z.array(z.string()),
-  extractability_score: z.number().min(0).max(100).optional().describe("Length-weighted mean of per-section extractability scores."),
-  chunk_analysis: z
-    .array(
-      z.object({
-        heading: z.string(),
-        level: z.number(),
-        word_count: z.number(),
-        score: z.number().min(0).max(100),
-        issues: z.array(z.string()),
-      }),
-    )
-    .optional()
-    .describe("Per-section extractability: how cleanly an LLM can lift a standalone answer from each chunk."),
-  most_extractable: z.object({ heading: z.string(), score: z.number() }).nullable().optional(),
-  least_extractable: z.object({ heading: z.string(), score: z.number() }).nullable().optional(),
+  overall_score: z.number(),
+  engine_scores: z.object({"perplexity": z.number(), "chatgpt": z.number(), "google_ai_overviews": z.number(), "claude": z.number()}),
+  sub_scores: z.object({"bluf_present": z.boolean(), "faq_blocks": z.number(), "statistic_density": z.number(), "entity_clarity": z.number(), "heading_question_ratio": z.number(), "answer_completeness": z.number()}),
+  extractability_score: z.number(),
+  chunk_analysis: z.array(z.object({"heading": z.string(), "level": z.number(), "word_count": z.number(), "score": z.number(), "issues": z.array(z.string())})),
+  most_extractable: z.union([z.null(), z.object({"heading": z.string(), "score": z.number()})]),
+  least_extractable: z.union([z.null(), z.object({"heading": z.string(), "score": z.number()})]),
+  improvements: z.array(z.string()),
+  findings: z.array(z.object({"severity": z.enum(["critical","warning","info"]), "category": z.enum(["schema","robots","technical","freshness","structure","authority","presence","sitemap","llms_txt","citation","evidence","trust","entity","content"]), "where": z.string(), "message": z.string(), "fix": z.string(), "estimated_impact": z.union([z.undefined(), z.literal("high"), z.literal("medium"), z.literal("low")]).optional(), "failure_signal": z.union([z.undefined(), z.string()]).optional(), "leading_indicator": z.union([z.undefined(), z.string()]).optional()})),
 } as const;
 
 const agenticFactorSchema = z.object({
@@ -232,34 +211,28 @@ export const generatePricingMdOutputShape = {
 } as const;
 
 export const validateLlmsTxtOutputShape = {
-  source: z.enum(["url", "content"]),
-  url: z.string().nullable(),
-  valid: z.boolean().describe("Whether the file passes structural and link rules."),
-  findings: z.array(findingSchema),
+  valid: z.boolean(),
+  links_total: z.number(),
+  links_broken: z.number(),
+  findings: z.array(z.object({"severity": z.enum(["critical","warning","info"]), "category": z.enum(["schema","robots","technical","freshness","structure","authority","presence","sitemap","llms_txt","citation","evidence","trust","entity","content"]), "where": z.string(), "message": z.string(), "fix": z.string(), "estimated_impact": z.union([z.undefined(), z.literal("high"), z.literal("medium"), z.literal("low")]).optional(), "failure_signal": z.union([z.undefined(), z.string()]).optional(), "leading_indicator": z.union([z.undefined(), z.string()]).optional()})),
 } as const;
 
 export const rewriteOutputShape = {
-  source: z.enum(["url", "text"]),
-  url: z.string().nullable(),
-  target_query: z.string(),
-  format: z.string().optional().describe("Output format (article, faq, howto, comparison)."),
-  rewritten: z.string().describe("The rewritten content. The caller decides where to publish it."),
-  notes: z.array(z.string()).describe("Notes from the rewrite (e.g. truncations, format adjustments)."),
+  rewritten_text: z.string(),
+  schema_additions: z.string(),
+  changes_made: z.array(z.string()),
+  before_score: z.number(),
+  after_score: z.number(),
+  mode: z.enum(["sampling","prompt_template"]),
 } as const;
 
 export const extractEntitiesOutputShape = {
-  source: z.enum(["url", "text"]),
-  url: z.string().nullable(),
+  entities: z.array(z.object({"name": z.string(), "type": z.union([z.null(), z.string()]), "same_as": z.array(z.string()), "mention_count": z.number(), "is_defined": z.boolean()})),
   entity_count: z.number(),
-  entities: z.array(
-    z.object({
-      name: z.string(),
-      type: z.string().optional(),
-      confidence: z.number().optional(),
-      same_as: z.array(z.string()).optional(),
-    }),
-  ),
-  citation_density_score: z.number().min(0).max(100),
+  connected_entity_count: z.number(),
+  citation_density_score: z.number(),
+  findings: z.array(z.object({"severity": z.enum(["critical","warning","info"]), "category": z.enum(["schema","robots","technical","freshness","structure","authority","presence","sitemap","llms_txt","citation","evidence","trust","entity","content"]), "where": z.string(), "message": z.string(), "fix": z.string(), "estimated_impact": z.union([z.undefined(), z.literal("high"), z.literal("medium"), z.literal("low")]).optional(), "failure_signal": z.union([z.undefined(), z.string()]).optional(), "leading_indicator": z.union([z.undefined(), z.string()]).optional()})),
+  mode: z.enum(["sampling","regex_fallback"]),
 } as const;
 
 export const diffPagesOutputShape = {

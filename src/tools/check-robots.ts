@@ -76,12 +76,11 @@ export async function checkRobots(input: CheckRobotsInput): Promise<RobotsResult
   for (const agent of CRAWLERS.training) {
     if (training_crawlers[agent] !== "disallowed") {
       findings.push({
-        severity: "warning",
+        severity: "info",
         category: "robots",
         where: `robots.txt User-agent: ${agent}`,
         message: `${agent} is not disallowed. Your content may be harvested for model training.`,
-        fix: `Add:\nUser-agent: ${agent}\nDisallow: /`,
-        estimated_impact: "medium",
+        fix: `Choose your training policy separately from search. To opt out for this agent, add:\nUser-agent: ${agent}\nDisallow: /`,
       });
     }
   }
@@ -92,35 +91,20 @@ export async function checkRobots(input: CheckRobotsInput): Promise<RobotsResult
       severity: "info",
       category: "robots",
       where: "robots.txt User-agent: OAI-SearchBot",
-      message: "OAI-SearchBot is not mentioned. Explicit Allow: / increases ChatGPT search citation probability.",
-      fix: "Add:\nUser-agent: OAI-SearchBot\nAllow: /",
+      message: "OAI-SearchBot has no named group. Normal robots.txt matching rules apply; a named Allow rule does not itself improve citation probability.",
+      fix: "Check the wildcard group and path rules if search crawling is intended.",
     });
   }
 
-  // PerplexityBot blocked warning
-  if (search_crawlers["PerplexityBot"] === "disallowed") {
+  // Only search restrictions affect citation-readiness warnings.
+  for (const agent of CRAWLERS.search) {
+    if (search_crawlers[agent] !== "disallowed") continue;
     findings.push({
       severity: "warning",
       category: "robots",
-      where: "robots.txt User-agent: PerplexityBot",
-      message: "PerplexityBot is blocked. This prevents citations in Perplexity AI answers.",
-      fix: "Remove the PerplexityBot Disallow directive or add Allow: /.",
-      estimated_impact: "high",
-    });
-  }
-
-  // GPTBot blocked but OAI-SearchBot not explicitly allowed
-  if (
-    training_crawlers["GPTBot"] === "disallowed" &&
-    search_crawlers["OAI-SearchBot"] !== "allowed"
-  ) {
-    findings.push({
-      severity: "warning",
-      category: "robots",
-      where: "robots.txt",
-      message:
-        "GPTBot is blocked (training) but OAI-SearchBot is not explicitly allowed (search). These are independently controllable.",
-      fix: "Add:\nUser-agent: OAI-SearchBot\nAllow: /\nto preserve ChatGPT search citations.",
+      where: `robots.txt User-agent: ${agent}`,
+      message: `${agent} is blocked from automated search crawling. Crawl permission does not guarantee citations.`,
+      fix: `If search crawling is intended, review the ${agent} Disallow directive and the relevant path rules.`,
       estimated_impact: "high",
     });
   }

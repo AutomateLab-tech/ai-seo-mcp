@@ -87,7 +87,9 @@ export function checkCrawlerStatus(
   try {
     const robots = robotsParser(robotsUrl, robotsText);
     // Check if explicitly disallowed
-    const isAllowed = robots.isAllowed("/", userAgent);
+    // robots-parser requires an absolute URL on the robots file's origin.
+    // A relative slash is treated as an unknown origin and hid Disallow rules.
+    const isAllowed = robots.isAllowed(new URL("/", robotsUrl).href, userAgent);
     if (isAllowed === false) return "disallowed";
 
     // Check if explicitly mentioned (as opposed to just allowed by default)
